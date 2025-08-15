@@ -1,0 +1,59 @@
+# WordPress
+wp-content/uploads/
+wp-content/cache/
+wp-content/backup-db/
+wp-content/backups/
+wp-content/blogs.dir/
+wp-content/upgrade/
+wp-content/wp-cache-config.php
+wp-content/plugins/hello.php
+
+# WordPress config
+wp-config.php
+wp-config-local.php
+
+# Logs
+*.log
+error_log
+access_log
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.docker/
+
+# Node modules (if using any build tools)
+node_modules/
+npm-debug.log*
+
+# Composer
+vendor/
+composer.lock
+
+# Temporary files
+*.tmp
+*.temp
