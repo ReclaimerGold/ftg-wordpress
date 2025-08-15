@@ -79,14 +79,14 @@ docker run -d --name wordpress \
   -e WORDPRESS_DB_USER=wordpress \
   -e WORDPRESS_DB_PASSWORD=wordpress \
   -e WORDPRESS_DB_NAME=wordpress \
-  ghcr.io/YOUR_USERNAME/ftg-wordpress:latest
+  ghcr.io/ReclaimerGold/ftg-wordpress:latest
 ```
 
 ## Building Locally
 
 ```bash
 # Clone this repository
-git clone https://github.com/YOUR_USERNAME/ftg-wordpress.git
+git clone https://github.com/ReclaimerGold/ftg-wordpress.git
 cd ftg-wordpress
 
 # Build the image
