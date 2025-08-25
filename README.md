@@ -20,7 +20,7 @@ version: '3.8'
 
 services:
   wordpress:
-    image: ghcr.io/YOUR_USERNAME/ftg-wordpress:latest
+    image: ghcr.io/reclaimergold/ftg-wordpress:latest
     ports:
       - "8080:80"
     environment:
@@ -86,7 +86,7 @@ docker run -d --name wordpress \
 
 ```bash
 # Clone this repository
-git clone https://github.com/ReclaimerGold/ftg-wordpress.git
+git clone https://github.com/reclaimergold/ftg-wordpress.git
 cd ftg-wordpress
 
 # Build the image
@@ -129,19 +129,22 @@ The image supports all standard WordPress environment variables:
 
 This repository includes a GitHub Actions workflow that automatically:
 
-1. Builds the Docker image on every push to main/master
+1. Builds the Docker image when a version tag is created (e.g., `v1.0.0`)
 2. Publishes to GitHub Container Registry (ghcr.io)
 3. Creates multi-platform builds (AMD64 and ARM64)
-4. Tags images appropriately (latest, version tags, etc.)
+4. Tags images with semantic versioning (e.g., `v1.0.0`, `1.0`, `1`, `latest`)
 
 ## Setup Instructions
 
 1. **Fork or create this repository** on GitHub
 2. **Enable GitHub Actions** in your repository settings
-3. **Update the image name** in the docker-compose.yml and README examples to match your repository
-4. **Push to main branch** to trigger the first build
+3. **Create a version tag** to trigger the first build:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
 
-The workflow will automatically publish your image to `ghcr.io/YOUR_USERNAME/REPO_NAME:latest`
+The workflow will automatically publish your image to `ghcr.io/ReclaimerGold/ftg-wordpress:latest` and version-specific tags.
 
 ## Installed PHP Extensions
 
