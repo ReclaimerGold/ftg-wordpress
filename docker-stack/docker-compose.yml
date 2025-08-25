@@ -1,0 +1,85 @@
+services:
+  # WordPress Service
+  wordpress:
+    # Use Official Image
+    image: ghcr.io/reclaimergold/ftg-wordpress:latest
+    
+    # Set the User:Group
+    user: "1000:1000"
+
+    # Add this line to handle permissions automatically
+    init: true
+
+    # This ensures the Redis service is started before WordPress
+    depends_on:
+      - redis
+
+    # Support HTTP/HTTPS Ports
+    ports:
+      - ${PORT}:80
+
+    # Restart unless explicitly stopped by the user
+    restart: unless-stopped
+
+    # Set Environment Variables
+    environment:
+      - WORDPRESS_DB_HOST=${WP_HOST}:30771
+      - WORDPRESS_DB_USER=${WP_USER}
+      - WORDPRESS_DB_PASSWORD=${WP_PASS}
+      - WORDPRESS_DB_NAME=${WP_DB_NAME}
+      - WORDPRESS_TABLE_PREFIX=${WP_DB_PREFIX}
+      - WORDPRESS_DEBUG=${WP_DEBUG_ENABLED}
+      # This block injects the necessary configuration into your wp-config.php
+      # to connect WordPress to the Redis container.
+      # IMPORTANT: For this to work, you must also install a Redis plugin
+      # in your WordPress admin dashboard, such as "Redis Object Cache" by Till Krüss.
+      - >
+        WORDPRESS_CONFIG_EXTRA=
+        define('WP_CACHE', true);
+        define('W3TC_CONFIG_CACHE_ENGINE', 'redis');
+        define('W3TC_CONFIG_CACHE_REDIS_SERVERS', 'redis:6379');
+        define('W3TC_CONFIG_CACHE_REDIS_PERSISTENT', true);
+        define('W3TC_CONFIG_CACHE_REDIS_DBID', 0);
+        define('W3TC_CONFIG_CACHE_REDIS_PASSWORD', '');
+        define('W3TC_CONFIG_CACHE_REDIS_TIMEOUT', 1);
+        define('W3TC_CONFIG_CACHE_REDIS_RETRY_INTERVAL', 100);
+        define('W3TC_CONFIG_CACHE_REDIS_READ_TIMEOUT', 1);
+        define('W3TC_CONFIG_DATABASE', true);
+
+    # Map Disks / Storage Locations to Local Server
+    volumes:
+      - /docker/wordpress/${USER_ACCOUNT}/wp-content:/var/www/html/wp-content
+      - /docker/wordpress/${USER_ACCOUNT}/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+
+    # Add this section to allocate resources to WordPress
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 3G
+        reservations:
+          cpus: '2.0'
+          memory: 2G
+
+  # Redis Service
+  redis:
+    # Use the official Redis image
+    image: redis:latest
+
+    # Restart unless explicitly stopped by the user
+    restart: unless-stopped
+
+    # This creates a persistent storage volume for Redis data, so your
+    # cache doesn't get wiped out on every restart.
+    volumes:
+      - /docker/redis/${USER_ACCOUNT}/data:/data
+
+    # Add this section to allocate resources to Redis
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
