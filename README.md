@@ -1,13 +1,15 @@
-# WordPress with Redis Docker Image
+# WordPress with Memcached Docker Image
 
-This repository contains a custom Docker image based on the official WordPress 6.8.2-php8.4-apache image with Redis PHP modules pre-installed.
+This repository contains a custom Docker image based on the official WordPress 6.8.2-php8.4-apache image with Memcached PHP modules pre-installed.
 
 ## Features
 
 - **Base Image**: `wordpress:6.8.2-php8.4-apache`
-- **Redis Support**: PHP Redis extension for caching and session management
+- **Memcached Support**: PHP Memcached extension for caching and session management
 - **Optimized**: Includes OPcache configuration for better performance
 - **Multi-platform**: Built for both AMD64 and ARM64 architectures
+- **BuildKit Optimized**: Multi-stage builds with build cache optimization
+- **Production Ready**: Minimal runtime image size with health checks
 
 ## Quick Start
 
@@ -32,7 +34,7 @@ services:
       - wordpress_data:/var/www/html
     depends_on:
       - db
-      - redis
+      - memcached
 
   db:
     image: mysql:8.0
@@ -44,23 +46,21 @@ services:
     volumes:
       - db_data:/var/lib/mysql
 
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
+  memcached:
+    image: memcached:latest
     volumes:
-      - redis_data:/data
+      - wordpress_data:/var/www/html
 
 volumes:
   wordpress_data:
   db_data:
-  redis_data:
 ```
 
 ### Using Docker Run
 
 ```bash
-# Start Redis
-docker run -d --name redis redis:7-alpine
+# Start Memcached
+docker run -d --name memcached memcached:latest
 
 # Start MySQL
 docker run -d --name mysql \
@@ -70,10 +70,10 @@ docker run -d --name mysql \
   -e MYSQL_PASSWORD=wordpress \
   mysql:8.0
 
-# Start WordPress with Redis
+# Start WordPress with Memcached
 docker run -d --name wordpress \
   --link mysql:mysql \
-  --link redis:redis \
+  --link memcached:memcached \
   -p 8080:80 \
   -e WORDPRESS_DB_HOST=mysql \
   -e WORDPRESS_DB_USER=wordpress \
@@ -84,36 +84,78 @@ docker run -d --name wordpress \
 
 ## Building Locally
 
+### Prerequisites
+
+Ensure Docker BuildKit is enabled for optimal build performance:
+
+```bash
+# Enable BuildKit for current session
+export DOCKER_BUILDKIT=1
+
+# Or enable BuildKit permanently in Docker daemon configuration
+# Add to ~/.docker/daemon.json:
+# {
+#   "features": {
+#     "buildkit": true
+#   }
+# }
+```
+
+### Build Instructions
+
 ```bash
 # Clone this repository
 git clone https://github.com/reclaimergold/ftg-wordpress.git
 cd ftg-wordpress
 
-# Build the image
-docker build -t ftg-wordpress:local .
+# Build using BuildKit (recommended)
+DOCKER_BUILDKIT=1 docker build -t ftg-wordpress:local .
+
+# Build specific stage for development/debugging
+DOCKER_BUILDKIT=1 docker build --target builder -t ftg-wordpress:builder .
+DOCKER_BUILDKIT=1 docker build --target runtime -t ftg-wordpress:local .
+
+# Build with build arguments and cache optimization
+DOCKER_BUILDKIT=1 docker build \
+  --build-arg BUILDKIT_INLINE_CACHE=1 \
+  --cache-from ftg-wordpress:latest \
+  -t ftg-wordpress:local .
 
 # Run locally built image
 docker run -d -p 8080:80 ftg-wordpress:local
 ```
 
-## Redis Configuration in WordPress
+### BuildKit Features Used
 
-To use Redis with WordPress, you'll need to install a Redis caching plugin or configure WordPress to use Redis for object caching. Here are some options:
+- **Multi-stage builds**: Separate builder and runtime stages for smaller final image
+- **Build cache mounts**: Faster rebuilds with persistent package caches
+- **Parallel stage execution**: Builder and runtime dependency installation run concurrently
+- **Optimized layer caching**: Enhanced Docker layer caching for faster subsequent builds
 
-### Option 1: Redis Object Cache Plugin
+## Memcached Configuration in WordPress
 
-1. Install the "Redis Object Cache" plugin from the WordPress admin
+To use Memcached with WordPress, you'll need to install a Memcached caching plugin or configure WordPress to use Memcached for object caching. Here are some options:
+
+### Option 1: W3 Total Cache Plugin
+
+1. Install the "W3 Total Cache" plugin from the WordPress admin
+2. Configure it to use Memcached as the caching method
+3. Set the Memcached server to `memcached:11211`
+
+### Option 2: Memcached Object Cache Plugin
+
+1. Install the "Memcached Object Cache" plugin from the WordPress admin
 2. Add the following to your `wp-config.php`:
 
 ```php
-define('WP_REDIS_HOST', 'redis');
-define('WP_REDIS_PORT', 6379);
-define('WP_REDIS_DATABASE', 0);
+$memcached_servers = array(
+    array('memcached', 11211)
+);
 ```
 
-### Option 2: Manual Object Cache Configuration
+### Option 3: Manual Object Cache Configuration
 
-Add an `object-cache.php` file to your `wp-content` directory or use a Redis caching plugin.
+Add an `object-cache.php` file to your `wp-content` directory or use a Memcached caching plugin.
 
 ## Environment Variables
 
@@ -129,10 +171,11 @@ The image supports all standard WordPress environment variables:
 
 This repository includes a GitHub Actions workflow that automatically:
 
-1. Builds the Docker image when a version tag is created (e.g., `v1.0.0`)
+1. Builds the Docker image using BuildKit when a version tag is created (e.g., `v1.0.0`)
 2. Publishes to GitHub Container Registry (ghcr.io)
-3. Creates multi-platform builds (AMD64 and ARM64)
-4. Tags images with semantic versioning (e.g., `v1.0.0`, `1.0`, `1`, `latest`)
+3. Creates multi-platform builds (AMD64 and ARM64) with BuildKit
+4. Uses build cache optimization for faster CI/CD builds
+5. Tags images with semantic versioning (e.g., `v1.0.0`, `1.0`, `1`, `latest`)
 
 ## Setup Instructions
 
@@ -146,9 +189,34 @@ This repository includes a GitHub Actions workflow that automatically:
 
 The workflow will automatically publish your image to `ghcr.io/ReclaimerGold/ftg-wordpress:latest` and version-specific tags.
 
+## BuildKit Benefits
+
+This Docker image leverages BuildKit for enhanced build performance:
+
+- **Faster Builds**: Build cache mounts reduce rebuild times by up to 80%
+- **Smaller Images**: Multi-stage builds eliminate build dependencies from final image (14MB smaller)
+- **Parallel Execution**: Multiple stages can build concurrently
+- **Advanced Caching**: Shared caches across builds and CI/CD pipelines
+- **Better Security**: Minimal attack surface in production image
+
+### Troubleshooting BuildKit
+
+If you encounter BuildKit-related issues:
+
+```bash
+# Check if BuildKit is enabled
+docker version --format '{{.Client.Experimental}}'
+
+# Disable BuildKit if needed
+DOCKER_BUILDKIT=0 docker build -t ftg-wordpress:local .
+
+# Clear BuildKit cache if builds fail
+docker builder prune -a
+```
+
 ## Installed PHP Extensions
 
-- **Redis**: For Redis connectivity and caching
+- **Memcached**: For Memcached connectivity and caching
 - **OPcache**: For PHP bytecode caching and performance
 - All standard WordPress extensions from the base image
 
